@@ -107,6 +107,34 @@ def send_message(chat_id: int, text: str, attachments: list | None = None) -> di
     return api_post("/messages", params={"chat_id": chat_id}, body=body)
 
 
+def send_file_when_ready(
+    chat_id: int,
+    text: str,
+    attachment: dict,
+    delays: tuple[int, ...] = (1, 2, 4, 8, 12),
+) -> bool:
+    for attempt, delay in enumerate(delays, start=1):
+        if delay:
+            time.sleep(delay)
+
+        result = send_message(chat_id, text, attachments=[attachment])
+        if not result.get("code") and isinstance(result.get("message"), dict):
+            return True
+
+        if result.get("code") != "attachment.not.ready":
+            logger.error("Не удалось отправить Excel-отчёт: %s", result)
+            return False
+
+        logger.info(
+            "Excel ещё обрабатывается MAX, повторная попытка %s/%s",
+            attempt,
+            len(delays),
+        )
+
+    logger.error("Excel не был обработан MAX за отведённое время")
+    return False
+
+
 def upload_file(path: Path) -> dict | None:
     upload = api_post("/uploads", params={"type": "file"})
     upload_url = upload.get("url")
@@ -397,11 +425,17 @@ def send_excel_report(user_id: int) -> None:
         send_message(chat_id, "Не удалось сформировать файл. Попробуйте ещё раз позже.")
         return
 
-    send_message(
+    sent = send_file_when_ready(
         chat_id,
         f"📎 Excel-отчёт за период {start:%d.%m.%Y} — {end:%d.%m.%Y}",
-        attachments=[attachment],
+        attachment,
     )
+    if not sent:
+        send_message(
+            chat_id,
+            "Не удалось отправить Excel: MAX слишком долго обрабатывал файл. "
+            "Попробуйте нажать «Скачать Excel» ещё раз через минуту.",
+        )
 
 
 def handle_report_input(user_id: int, text: str) -> bool:

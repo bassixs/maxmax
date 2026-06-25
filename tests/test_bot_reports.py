@@ -98,6 +98,28 @@ class BotReportFlowTests(unittest.TestCase):
         bot.handle_report_input(user_id, "/report_exit")
         self.assertEqual(bot.user_states[user_id], bot.STATE_IDLE)
 
+    @patch("bot.time.sleep")
+    @patch("bot.send_message")
+    def test_excel_waits_until_attachment_is_ready(self, send_message, sleep):
+        send_message.side_effect = [
+            {
+                "code": "attachment.not.ready",
+                "message": "not processed",
+            },
+            {"message": {"body": {"text": "sent"}}},
+        ]
+
+        sent = bot.send_file_when_ready(
+            20,
+            "Отчёт",
+            {"type": "file", "payload": {"token": "test"}},
+            delays=(1, 2),
+        )
+
+        self.assertTrue(sent)
+        self.assertEqual(send_message.call_count, 2)
+        self.assertEqual(sleep.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
