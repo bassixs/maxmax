@@ -73,6 +73,31 @@ class BotReportFlowTests(unittest.TestCase):
         bot.handle_report_input(user_id, "не дата")
         self.assertIn("Используйте формат", send_message.call_args.args[1])
 
+    @patch("bot.send_message")
+    def test_clear_requires_confirmation_and_exit(self, send_message):
+        user_id = 10
+        bot.user_chat_id[user_id] = 20
+        bot.user_states[user_id] = bot.STATE_REPORT_MENU
+        bot.STORE.add(
+            1,
+            "Иван",
+            "",
+            "Адрес",
+            datetime.now(MOSCOW_TZ),
+        )
+
+        bot.handle_report_input(user_id, "/report_clear")
+        self.assertEqual(
+            bot.user_states[user_id],
+            bot.STATE_REPORT_CLEAR_CONFIRM,
+        )
+
+        bot.handle_report_input(user_id, "/report_clear_confirm")
+        self.assertIn("Удалено обращений: 1", send_message.call_args.args[1])
+
+        bot.handle_report_input(user_id, "/report_exit")
+        self.assertEqual(bot.user_states[user_id], bot.STATE_IDLE)
+
 
 if __name__ == "__main__":
     unittest.main()

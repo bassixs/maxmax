@@ -50,6 +50,12 @@ class ReportTests(unittest.TestCase):
                 self.assertIn("Салтыкова-Щедрина", sheet)
                 self.assertIn("салтыковка", sheet)
 
+            self.assertEqual(store.clear(), 3)
+            self.assertEqual(
+                store.get_period(date(2026, 6, 25), date(2026, 6, 25)),
+                [],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

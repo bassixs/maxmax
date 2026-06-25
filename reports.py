@@ -109,6 +109,15 @@ class ComplaintStore:
                 (start_iso, end_iso),
             ).fetchall()
 
+    def clear(self) -> int:
+        with closing(self.connect()) as connection:
+            with connection:
+                count = connection.execute(
+                    "SELECT COUNT(*) FROM complaints"
+                ).fetchone()[0]
+                connection.execute("DELETE FROM complaints")
+            return count
+
 
 def address_top(rows: list[sqlite3.Row], limit: int = 5) -> list[tuple[str, int]]:
     variants: dict[str, Counter] = defaultdict(Counter)

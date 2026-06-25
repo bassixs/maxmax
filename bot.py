@@ -44,6 +44,7 @@ STATE_WAITING_ADDRESS = "waiting_address"
 STATE_REPORT_PASSWORD = "report_password"
 STATE_REPORT_MENU = "report_menu"
 STATE_REPORT_CUSTOM = "report_custom"
+STATE_REPORT_CLEAR_CONFIRM = "report_clear_confirm"
 
 user_states: dict[int, str] = {}
 user_data: dict[int, dict] = {}
@@ -261,6 +262,57 @@ def show_report_menu(user_id: int) -> None:
                         message_button("Текущий месяц", "/report_month"),
                         message_button("Указать даты", "/report_custom"),
                     ],
+                    [message_button("🗑 Очистить данные", "/report_clear")],
+                    [message_button("🚪 Выйти из панели", "/report_exit")],
+                ]
+            )
+        ],
+    )
+
+
+def exit_report_panel(user_id: int) -> None:
+    chat_id = user_chat_id[user_id]
+    user_states[user_id] = STATE_IDLE
+    report_periods.pop(user_id, None)
+    user_data.pop(user_id, None)
+    send_message(
+        chat_id,
+        "Вы вышли из админ-панели.\n\n"
+        "Чтобы подать новое обращение, отправьте любое сообщение.",
+    )
+
+
+def request_clear_confirmation(user_id: int) -> None:
+    chat_id = user_chat_id[user_id]
+    user_states[user_id] = STATE_REPORT_CLEAR_CONFIRM
+    send_message(
+        chat_id,
+        "⚠️ Вы действительно хотите удалить все сохранённые обращения?\n\n"
+        "После удаления восстановить данные будет невозможно.",
+        attachments=[
+            keyboard(
+                [
+                    [message_button("Да, удалить всё", "/report_clear_confirm")],
+                    [message_button("Отмена", "/report_menu")],
+                ]
+            )
+        ],
+    )
+
+
+def clear_report_data(user_id: int) -> None:
+    chat_id = user_chat_id[user_id]
+    deleted_count = STORE.clear()
+    report_periods.clear()
+    user_states[user_id] = STATE_REPORT_MENU
+    send_message(
+        chat_id,
+        f"✅ Данные очищены.\n\nУдалено обращений: {deleted_count}.",
+        attachments=[
+            keyboard(
+                [
+                    [message_button("Вернуться в админ-панель", "/report_menu")],
+                    [message_button("🚪 Выйти из панели", "/report_exit")],
                 ]
             )
         ],
@@ -291,7 +343,12 @@ def send_report_summary(user_id: int, start: date, end: date) -> None:
             f"📊 Отчёт за период {period}\n\n"
             "За выбранный период нарушений не зафиксировано.",
             attachments=[
-                keyboard([[message_button("Выбрать другой период", "/report_menu")]])
+                keyboard(
+                    [
+                        [message_button("Выбрать другой период", "/report_menu")],
+                        [message_button("🚪 Выйти из панели", "/report_exit")],
+                    ]
+                )
             ],
         )
         return
@@ -312,6 +369,7 @@ def send_report_summary(user_id: int, start: date, end: date) -> None:
                 [
                     [message_button("Скачать Excel", "/report_excel")],
                     [message_button("Выбрать другой период", "/report_menu")],
+                    [message_button("🚪 Выйти из панели", "/report_exit")],
                 ]
             )
         ],
@@ -351,10 +409,8 @@ def handle_report_input(user_id: int, text: str) -> bool:
     command = text.strip().casefold()
     state = user_states.get(user_id, STATE_IDLE)
 
-    if command == "/cancel":
-        user_states[user_id] = STATE_IDLE
-        report_periods.pop(user_id, None)
-        send_message(chat_id, "Действие отменено.")
+    if command in ("/cancel", "/report_exit", "🚪 выйти из панели", "выйти из панели"):
+        exit_report_panel(user_id)
         return True
 
     if state == STATE_REPORT_PASSWORD:
@@ -366,6 +422,21 @@ def handle_report_input(user_id: int, text: str) -> bool:
 
     if command in ("/report_menu", "выбрать другой период"):
         show_report_menu(user_id)
+        return True
+
+    if command in ("/report_clear", "🗑 очистить данные", "очистить данные"):
+        request_clear_confirmation(user_id)
+        return True
+
+    if command in (
+        "/report_clear_confirm",
+        "да, удалить всё",
+        "да, удалить все",
+    ):
+        if state != STATE_REPORT_CLEAR_CONFIRM:
+            show_report_menu(user_id)
+            return True
+        clear_report_data(user_id)
         return True
 
     if command == "/report_custom" or command == "указать даты":
