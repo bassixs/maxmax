@@ -2,6 +2,10 @@ import requests
 import requests.packages.urllib3 as urllib3
 import time
 import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -15,12 +19,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-TOKEN = "f9LHodD0cOL4Wp7aohM6jTVIgzzVTZaAqc2GrVs7pEc2CA3fd3Bkd7r8HW_idW2LQv-gTS7xoYaZZgbtHCVD"
+TOKEN = os.getenv("MAX_BOT_TOKEN")
+if not TOKEN:
+    raise RuntimeError("MAX_BOT_TOKEN is not set in .env")
+
 BASE_URL = "https://botapi.max.ru"
 HEADERS = {"Authorization": TOKEN, "Content-Type": "application/json"}
 
 # ID закрытого чата — устанавливается автоматически когда бот добавлен в чат (событие bot_added)
-TARGET_CHAT_ID = -76236081993774  # чат "Бот Центр Обращения"
+TARGET_CHAT_ID = int(os.getenv("TARGET_CHAT_ID", "-76236081993774"))
 
 STATE_IDLE = "idle"
 STATE_WAITING_MEDIA = "waiting_media"
