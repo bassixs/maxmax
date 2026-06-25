@@ -139,7 +139,7 @@ def forward_complaint(user_id: int, data: dict, address: str):
 
     header = (
         "🚨 Новое обращение о нарушении на АЗС\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "━━━━━━━━━━━\n"
         f"👤 От: {user_name} (id: {user_id})\n"
         f"📍 Адрес: {address}"
     )
